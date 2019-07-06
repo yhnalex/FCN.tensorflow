@@ -13,11 +13,10 @@ DATA_URL = 'http://data.csail.mit.edu/places/ADEchallenge/ADEChallengeData2016.z
 
 
 def read_dataset(data_dir):
-    pickle_filename = "MITSceneParsing.pickle"
+    pickle_filename = "tumax.pickle"
     pickle_filepath = os.path.join(data_dir, pickle_filename)
     if not os.path.exists(pickle_filepath):
-        utils.maybe_download_and_extract(data_dir, DATA_URL, is_zipfile=True)
-        SceneParsing_folder = os.path.splitext(DATA_URL.split("/")[-1])[0]
+        SceneParsing_folder = 'tumax'
         result = create_image_lists(os.path.join(data_dir, SceneParsing_folder))
         print ("Pickling ...")
         with open(pickle_filepath, 'wb') as f:
@@ -51,8 +50,10 @@ def create_image_lists(image_dir):
             print('No files found')
         else:
             for f in file_list:
-                filename = os.path.splitext(f.split("/")[-1])[0]
+                filename = os.path.basename(f).split(".")[0]
+                print(filename)
                 annotation_file = os.path.join(image_dir, "annotations", directory, filename + '.png')
+                print(annotation_file)
                 if os.path.exists(annotation_file):
                     record = {'image': f, 'annotation': annotation_file, 'filename': filename}
                     image_list[directory].append(record)

@@ -7,21 +7,28 @@ import read_MITSceneParsingData as scene_parsing
 import datetime
 import BatchDatsetReader as dataset
 from six.moves import xrange
+import os
+import scipy.misc as misc
+import PIL.Image
 
 FLAGS = tf.flags.FLAGS
-tf.flags.DEFINE_integer("batch_size", "2", "batch size for training")
+tf.flags.DEFINE_integer("batch_size", "10", "batch size for training")
 tf.flags.DEFINE_string("logs_dir", "logs/", "path to logs directory")
-tf.flags.DEFINE_string("data_dir", "Data_zoo/MIT_SceneParsing/", "path to dataset")
+tf.flags.DEFINE_string("data_dir", "Data_zoo/", "path to dataset")
 tf.flags.DEFINE_float("learning_rate", "1e-4", "Learning rate for Adam Optimizer")
 tf.flags.DEFINE_string("model_dir", "Model_zoo/", "Path to vgg model mat")
 tf.flags.DEFINE_bool('debug', "False", "Debug mode: True/ False")
-tf.flags.DEFINE_string('mode', "train", "Mode train/ test/ visualize")
+tf.flags.DEFINE_string('mode', "test", "Mode train/ test/ visualize")
+
+
+test_file_path = 'images/'
 
 MODEL_URL = 'http://www.vlfeat.org/matconvnet/models/beta16/imagenet-vgg-verydeep-19.mat'
 
-MAX_ITERATION = int(1e5 + 1)
-NUM_OF_CLASSESS = 151
-IMAGE_SIZE = 224
+MAX_ITERATION = int(1e3 + 1)
+# MAX_ITERATION = 2000
+NUM_OF_CLASSESS = 2
+IMAGE_SIZE = 500
 
 
 def vgg_net(weights, image):
@@ -202,7 +209,7 @@ def main(argv=None):
                 print("Step: %d, Train_loss:%g" % (itr, train_loss))
                 train_writer.add_summary(summary_str, itr)
 
-            if itr % 500 == 0:
+            if itr % 10 == 0:
                 valid_images, valid_annotations = validation_dataset_reader.next_batch(FLAGS.batch_size)
                 valid_loss, summary_sva = sess.run([loss, loss_summary], feed_dict={image: valid_images, annotation: valid_annotations,
                                                        keep_probability: 1.0})
@@ -212,18 +219,160 @@ def main(argv=None):
                 validation_writer.add_summary(summary_sva, itr)
                 saver.save(sess, FLAGS.logs_dir + "model.ckpt", itr)
 
+    # elif FLAGS.mode == "visualize":
+    #     valid_images, valid_annotations = validation_dataset_reader.get_random_batch(FLAGS.batch_size)
+    #     pred = sess.run(pred_annotation, feed_dict={image: valid_images, annotation: valid_annotations,
+    #                                                 keep_probability: 1.0})
+    #     valid_annotations = np.squeeze(valid_annotations, axis=3)
+    #     pred = np.squeeze(pred, axis=3)
+    #
+    #     for itr in range(FLAGS.batch_size):
+    #         utils.save_image(valid_images[itr].astype(np.uint8), FLAGS.logs_dir, name="inp_" + str(5+itr))
+    #         utils.save_image(valid_annotations[itr].astype(np.uint8), FLAGS.logs_dir, name="gt_" + str(5+itr))
+    #         utils.save_image(pred[itr].astype(np.uint8), FLAGS.logs_dir, name="pred_" + str(5+itr))
+    #         print("Saved image: %d" % itr)
+
     elif FLAGS.mode == "visualize":
-        valid_images, valid_annotations = validation_dataset_reader.get_random_batch(FLAGS.batch_size)
-        pred = sess.run(pred_annotation, feed_dict={image: valid_images, annotation: valid_annotations,
-                                                    keep_probability: 1.0})
-        valid_annotations = np.squeeze(valid_annotations, axis=3)
+        # num: the number of images to be tested which can be a single batch_size or all validation set
+        valid_images, valid_annotations, num = validation_dataset_reader.get_random_batch(FLAGS.batch_size)
+        print(valid_images)
+        print(type(valid_images))
+        pred = sess.run(pred_annotation, feed_dict={image: valid_images, keep_probability: 1.0})
+        pred = np.squeeze(pred, axis=3)
+        print(len(valid_images))
+        print(num)
+
+
+        # for f in file_list:
+        #     filename = test_file_path + '/' + f
+        #     print(filename)
+        #     image = misc.imread(filename)
+        #     print(len(image.shape))
+        #     if len(image.shape) < 3:  # make sure images are of shape(h,w,3)
+        #         image = np.array([image for i in range(3)])
+        #     print(image)
+        #     image_list.append(image)
+        # image_list = np.array(image_list)
+
+
+        for itr in range(num):
+            src_img = valid_images[itr].astype(np.uint8)
+            pred_img = pred[itr].astype(np.uint8)
+            print(pred_img)
+            # create fliedir
+
+            dirs = 'test_visualize/'
+
+            if not os.path.exists(dirs):
+                os.makedirs(dirs)
+
+            # create file
+
+            file_object = open('test_visualize/' + "inp_" + str(itr) + '.png', 'w')
+            file_object.close()
+            file_object = open('test_visualize/' + "pred_" + str(itr) + '.png', 'w')
+            file_object.close()
+
+            # save images to ./logs/test_visualize
+            utils.save_image(src_img, 'test_visualize/', name="inp_" + str(itr) + '.png')
+
+            utils.save_image(pred_img, 'test_visualize/', name="pred_" + str(itr) + '.png')
+            for i in range(pred_img.shape[0]):
+                for j in range(pred_img.shape[1]):
+                    if pred_img[i, j] != 0:
+                        # if your source images are RGB format, you need to change three channels
+                        src_img[i, j] = 200
+            utils.save_image(src_img, 'test_visualize/', name="visual_" + str(itr) + '.png')
+
+            # 标签可视化
+            for i in range(pred_img.shape[0]):
+                for j in range(pred_img.shape[1]):
+                    if pred_img[i, j] != 0:
+                        pred_img[i, j] = 200
+
+            file_object = open('test_visualize/' + "pred_visual" + str(itr) + '.png', 'w')
+            file_object.close()
+            utils.save_image(pred_img, 'test_visualize/', name="pred_visual" + str(itr) + '.png')
+
+
+            print("Saved image: %d" % itr)
+
+    elif FLAGS.mode == 'test':
+
+        file_list = []
+        rootdir = test_file_path
+        for parent, dirnames, filenames in os.walk(rootdir):
+            for filename in filenames:
+                print("Parent folder:", parent)
+                print("Filename:", filename)
+                file_list.append(os.path.join(parent, filename))
+        image_list = np.array([misc.imresize(misc.imread(f),
+                                         [IMAGE_SIZE, IMAGE_SIZE], interp='nearest') for f in file_list])
+
+        num = len(file_list)
+        print(num)
+
+        # for f in file_list:
+        #     filename = f
+        #     print(filename)
+        #     image = misc.imread(filename)
+        #     print(len(image.shape))
+        #     if len(image.shape) < 3:  # make sure images are of shape(h,w,3)
+        #         image = np.array([image for i in range(3)])
+        #     print(image)
+        #     image_list = np.append(image_list, image)
+        # image_list = np.array(image_list)
+
+        indexes = range(image_list.shape[0])
+        image_list_final = image_list[indexes]
+        print(image_list_final)
+        print(type(image_list_final))
+        pred = sess.run(pred_annotation, feed_dict={image: image_list_final, keep_probability: 1.0})
         pred = np.squeeze(pred, axis=3)
 
-        for itr in range(FLAGS.batch_size):
-            utils.save_image(valid_images[itr].astype(np.uint8), FLAGS.logs_dir, name="inp_" + str(5+itr))
-            utils.save_image(valid_annotations[itr].astype(np.uint8), FLAGS.logs_dir, name="gt_" + str(5+itr))
-            utils.save_image(pred[itr].astype(np.uint8), FLAGS.logs_dir, name="pred_" + str(5+itr))
+        print(num)
+        for itr in range(num):
+            src_img = image_list[itr].astype(np.uint8)
+            pred_img = pred[itr].astype(np.uint8)
+            print(pred_img)
+
+
+            # create fliedir
+
+            dirs = 'test/'
+
+            if not os.path.exists(dirs):
+                os.makedirs(dirs)
+
+            # create file
+
+            file_object = open('test/' + "inp_" + str(itr) + '.png', 'w')
+            file_object.close()
+            file_object = open('test/' + "pred_" + str(itr) + '.png', 'w')
+            file_object.close()
+            # save images to ./logs/test_visualize
+            utils.save_image(src_img, 'test/', name="inp_" + str(itr) + '.png')
+            utils.save_image(pred_img, 'test/', name="pred_" + str(itr) + '.png')
+            for i in range(pred_img.shape[0]):
+                for j in range(pred_img.shape[1]):
+                    if pred_img[i, j] != 0:
+                        # if your source images are RGB format, you need to change three channels
+                        src_img[i, j] = 200
+            utils.save_image(src_img, 'test/', name="visual_" + str(itr) + '.png')
+
+            # 标签可视化
+            for i in range(pred_img.shape[0]):
+                for j in range(pred_img.shape[1]):
+                    if pred_img[i, j] != 0:
+                        pred_img[i, j] = 200
+
+            file_object = open('test/' + "pred_visual" + str(itr) + '.png', 'w')
+            file_object.close()
+            utils.save_image(pred_img, 'test/', name="pred_visual" + str(itr) + '.png')
+
+
             print("Saved image: %d" % itr)
+
 
 
 if __name__ == "__main__":

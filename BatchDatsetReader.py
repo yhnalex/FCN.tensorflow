@@ -79,5 +79,12 @@ class BatchDatset:
         return self.images[start:end], self.annotations[start:end]
 
     def get_random_batch(self, batch_size):
-        indexes = np.random.randint(0, self.images.shape[0], size=[batch_size]).tolist()
-        return self.images[indexes], self.annotations[indexes]
+        # indexes = np.random.randint(0, self.images.shape[0], size=[batch_size]).tolist()
+        # return self.images[indexes], self.annotations[indexes]
+        # indexes = np.random.randint(0, self.images.shape[0], size=[batch_size]).tolist()
+        # num = batch_size
+
+        indexes = range(self.images.shape[0]) #test all validation images
+        num = self.images.shape[0]
+        return self.images[indexes], self.annotations[indexes], num
+
